@@ -1,0 +1,18 @@
+{
+    "problem": "tracker",
+    "adultPool": 100,
+    "childPool": 200,
+    "adultLimit": 5,
+    "crossRate": 0.50,
+    "mutationRate": 0.05,
+    "mutationSeverity": 0.06,
+    "contestants": 5,
+    "epsilon": 0.3, 
+    "generations": 80,
+    "reproductionStrat": "rankStrat",
+    "populationStrat": "mixinLimited",
+    "layout": [5, 3, 2],
+    "pull": false,
+    "moves": 600,
+    "toroidal": true
+}
