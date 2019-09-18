@@ -1,37 +1,65 @@
-name := "subsym2"
+import Dependencies._
 
-version := "0.3.0"
+resolvers += "Sonatype Releases" at "https://oss.sonatype.org/content/repositories/releases/"
 
-scalaVersion := "2.11.7"
- 
-val scalazVersion = "7.1.0"
+resolvers += Resolver.sonatypeRepo("releases")
 
-libraryDependencies ++= Seq(
-    "org.scalanlp" %% "breeze" % "0.11.2",
-    "org.scalanlp" %% "breeze-natives" % "0.11.2",
-    "org.scalanlp" %% "breeze-viz" % "0.11.2",
-    "org.scalaz" %% "scalaz-core" % scalazVersion,
-    "org.scalaz" %% "scalaz-effect" % scalazVersion,
-    "org.scalaz" %% "scalaz-typelevel" % scalazVersion,
-    "org.scalaz" %% "scalaz-scalacheck-binding" % scalazVersion % "test",
-    "org.scalafx" %% "scalafx" % "8.0.60-R9",
-    "org.sameersingh.scalaplot" % "scalaplot" % "0.0.4",
-    "io.spray" %% "spray-json" % "1.3.2",
-    "org.scalafx" %% "scalafx" % "8.0.60-R9",
-    "com.github.scala-blitz" %% "scala-blitz" % "1.1"
+ThisBuild / version := "0.1.0"
+inThisBuild(Seq(
+  scalacOptions ++= compilerFlags
+))
+
+addCompilerPlugin("org.typelevel" %% "kind-projector" % "0.10.3")
+
+lazy val root = (project in file("."))
+  .settings(
+    name := "scalapagos",
+    scalaVersion := "2.12.9",
+    libraryDependencies ++= deps.value
+  )
+
+
+
+val compilerFlags = Seq(
+    // Emit warning and location for usages of features that should be imported explicitly.
+    // Det trenger vi vel egentlig ikke, blir bare masse støy
+    // "-feature",
+
+    "-explaintypes",
+
+    // Lol no HKT
+    "-language:higherKinds",
+
+    // Under tvil, kan fint taes av lokalt
+    "-deprecation",
+
+    // Enable additional warnings where generated code depends on assumptions.
+    "-unchecked",
+
+    // Allow definition of implicit functions called views
+    "-language:implicitConversions",
+
+    // Existential types (besides wildcard types) can be written and inferred
+    "-language:existentials",
+
+    // Turn on future language features
+    "-Xfuture",
+
+    // Allows 2 second as opposed to 2.second
+    // Generally adviced against, but I kinda like having them
+    "-language:postfixOps",
+
+    // Makes inference work better for partially parametrized types
+    // such as foo[F[_], A]
+    "-Ypartial-unification",
+
+    // Completery moronic discarding of values.
+    // Had a really nasty bug where IO[IO[Unit]] was accepted when the signature was IO[Unit]
+    // Nightmare to debug...
+    "-Ywarn-value-discard"
+
+
+    // Yeah no
+    // "-Xfatal-warnings",
+    // "-Xlint:_,-missing-interpolator,-adapted-args"
 )
-
-resolvers ++= Seq(  
-    "Sonatype Snapshots" at "https://oss.sonatype.org/content/repositories/snapshots/",
-    "Sonatype Releases" at "https://oss.sonatype.org/content/repositories/releases/"
-)
-
-scalacOptions := Seq("-feature", "-deprecation")
-
-fork in run := true
-cancelable in Global := true
-connectInput in run := true
-
-import com.github.retronym.SbtOneJar._
-
-oneJarSettings
