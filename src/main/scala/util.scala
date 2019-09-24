@@ -6,6 +6,15 @@ case class Dims(x: Int, y: Int){
   val total = x*y
 }
 
+object IntBonusOps {
+  implicit class intBonusOps(i: Int){
+    def modp(n: Int) = {
+      val a = i % n
+      if(a > 0) a else a + n
+    }
+  }
+}
+
 object utils {
   def say(word: Any, color: String = Console.RESET, timestamp: Boolean = false)(implicit filename: sourcecode.File, line: sourcecode.Line): Unit = {
     cats.effect.IO

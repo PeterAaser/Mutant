@@ -8,5 +8,7 @@ object main {
     say(theThing.readerProgram)
     say(theThing.main2.unsafeRunSync)
     say(theThing.main.unsafeRunSync)
+
+    ShittyTest.test
   }
 }
