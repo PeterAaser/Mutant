@@ -15,6 +15,12 @@ object IntBonusOps {
   }
 }
 
+object DoubleBonusOps {
+  implicit class doubleBonusOps(d: Double){
+    def floorInt: Int = d.floor.toInt
+  }
+}
+
 object utils {
   def say(word: Any, color: String = Console.RESET, timestamp: Boolean = false)(implicit filename: sourcecode.File, line: sourcecode.Line): Unit = {
     cats.effect.IO

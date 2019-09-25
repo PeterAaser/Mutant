@@ -1,6 +1,8 @@
 package scalapagos
 
 import utils._
+import IntBonusOps._
+
 import scala.collection.mutable.ListBuffer
 import cats._
 import cats.Monoid
@@ -48,6 +50,13 @@ case class Node(c0: Int, c1: Int, p0: Double, p1: Double, p2: Double, f: Functio
   var value = 0.0
   var known = false
   def reset: Unit = {known = false}
+
+  override def toString = {
+    if(known)
+      Console.GREEN ++ s"$f\t[$c0, $c1]\t" ++ f"$value%1.2f" ++ Console.RESET
+    else
+      Console.RED ++ s"[$f, $c0, $c1]" ++ Console.RESET
+  }
 }
 
 object Node {
@@ -99,15 +108,15 @@ object Node {
   }
 }
 
-class TODOList(size: Int, repr: ListBuffer[(SM, Int)]){
-  def append(n: SM, idx: Int): Unit = n match {
+class TODOList(size: Int, repr: ListBuffer[(Node, Int)]){
+  def append(n: Node, idx: Int): Unit = n.f match {
     case FLUSH => repr.clear
-    case a: SM => repr.append((a, idx))
+    case a: SM => repr.append((n, idx))
   }
-  def get: List[(SM, Int)] = repr.reverse.take(size).toList
+  def get: List[(Node, Int)] = repr.reverse.take(size).toList
 }
 object TODOList {
-  def apply(size: Int): TODOList = new TODOList(size, new ListBuffer[(SM, Int)])
+  def apply(size: Int): TODOList = new TODOList(size, new ListBuffer[(Node, Int)])
 }
 
 
@@ -115,7 +124,7 @@ class InputList(repr: Array[Double]){
   var pointer = 0
   def inp: Double = {
     val r = repr(pointer)
-    if(pointer >= repr.size) pointer = 0 else pointer += 1
+    if(pointer >= (repr.size - 1)) pointer = 0 else pointer += 1
     r
   }
 
@@ -127,26 +136,21 @@ class InputList(repr: Array[Double]){
 
   def inpskip(p: Double): Double = {
     val r = repr(pointer)
-    pointer = (pointer + p.toInt) % repr.size
+    pointer = (pointer + p.toInt).modp(repr.size - 1)
     r
   }
 }
 
-case class Graph(nodes: Array[Node]){
+case class Graph(var nodes: Array[Node]) extends Modifiers {
 
-  val size = nodes.size
+  def size = nodes.size
   def getNode(n: Int): Node = if(n < 0) nodes(0) else nodes(n)
-  def clamp(n: Int): Int = if(n < 0) 0 else if(n >= size) size - 1 else n
 
-  var inputPointer = 0
-
-  def appendOutputs(outputsNeeded: Int): List[Int] = {
-    var outputsLeft = outputsNeeded
+  def appendOutputs: List[Int] = {
     val traversalOrder = new ListBuffer[Int]
     for(ii <- 0 until size){
       nodes(ii).f match {
-        case x: Function with Output if(outputsLeft > 0) => {
-          outputsLeft -= 1
+        case x: Function with Output => {
           traversalOrder.append(ii)
         }
         case _ => ()
@@ -161,25 +165,23 @@ case class Graph(nodes: Array[Node]){
     nodes(n).f match {
       case x: Function with Input => traversalOrder.append(n)
       case x: Function => {
-        if(!getNode(n - nodes(n).c0).known) appendNeeded(n - nodes(n).c0, traversalOrder)
-        if(!getNode(n - nodes(n).c1).known) appendNeeded(n - nodes(n).c1, traversalOrder)
+        if(!getNode(n - nodes(n).c0).known) appendNeeded(clamp(n - nodes(n).c0), traversalOrder)
+        if(!getNode(n - nodes(n).c1).known) appendNeeded(clamp(n - nodes(n).c1), traversalOrder)
         traversalOrder.append(n)
       }
     }
-    say(s"traversal order: ${traversalOrder.toList}")
   }
 
 
   def getTraversalOrder: List[Int] = {
     val buf = new ListBuffer[Int]()
-    val outputs = appendOutputs(2)
-    say(outputs)
+    val outputs = appendOutputs
     outputs.foreach(n => appendNeeded(n, buf))
     buf.toList
   }
 
 
-  def calculateValues(inputs: InputList): Unit = {
+  def calculateValues(inputs: InputList): List[Double] = {
     getTraversalOrder.foreach{index =>
       val node = nodes(index)
       val c0 = index - node.c0
@@ -200,24 +202,56 @@ case class Graph(nodes: Array[Node]){
       }
       nodes(index).value = nodeValue
     }
+    nodes.filter{ n => n.f match {
+      case x @ OUTPUT => true
+      case _ => false
+    }}.map(_.value).toList
   }
 
 
   // TODO: I don't like this way of collecting TODO nodes.
   // Needs verification
-  def collectTodos: List[(SM, Int)] = {
+  def collectTodos: List[(Node, Int)] = {
     val todo = TODOList(2)
     for(ii <- 0 until size){
       nodes(ii).f match {
         case x: Function with SM if nodes(ii).known => {
           if(getNode(ii - nodes(ii).c0).value >= getNode(ii - nodes(ii).c1).value)
-            todo.append(x, ii)
+            todo.append(nodes(ii), ii)
         }
         case _ => ()
       }
     }
     todo.get
   }
+
+
+  def applyTodos: Boolean = {
+    val todoList = collectTodos
+    var done = false
+    var idx = 0
+    while((!done) && todoList.isDefinedAt(idx)){
+      val (next, success) = Function.tupled(modify _)(todoList(idx))
+      done = success
+      idx = idx + 1
+      if(done)
+        nodes = next
+    }
+    done
+  }
+
+  /**
+    Runs the network, performs modifications, resets nodes and
+    returns the output
+    */
+  def run(input: List[Double]): (Boolean, List[Double]) = {
+    val output = calculateValues(new InputList(input.toArray))
+    say(nodes.toList.mkString("\n","\n", "\n"))
+    val changed = applyTodos
+    nodes.foreach(_.reset)
+    (changed, output)
+  }
+
 }
 
 
@@ -225,28 +259,29 @@ object ShittyTest {
 
   def test: Unit = {
     val nodes = List(
-      Node(1, 1, 0.0, 0.0, 0.0, INP),
-      Node(1, 1, 0.0, 0.0, 0.0, INP),
+      Node(1,  1,   1.0,   0.0,   0.0, NOP),
+      Node(1,  1,   1.0,   0.0,   0.0, INP),
 
-      Node(1, 1, 0.0, 0.0, 0.0, NOP),
-      Node(1, 1, 0.0, 0.0, 0.0, NOP),
+      Node(4,  1,   3.3,   0.0,   0.0, NOP),
+      Node(1,  1,   2.0,   0.0,   0.0, NOP),
 
-      Node(3, 4, 0.0, 0.0, 0.0, ADD),
+      //   c1  c2   p0     p1     p2
+      Node(3,  7,   2.6,   1.3,   -8.0, DUP),
 
-      Node(3, 4, 0.0, 0.0, 0.0, NOP),
+      Node(3,  4,   0.0,   0.0,   0.0, NOP),
 
-      Node(2, 5, 0.0, 0.0, 0.0, DSUB),
-      Node(3, 3, -1.0, 0.0, 0.0, CONST),
+      Node(2,  5,   0.0,   0.0,   0.0, DSUB),
+      Node(3,  3,  -1.0,   0.0,   0.0, CONST),
 
-      Node(3, 3, 1.0, 0.0, 0.0, NOP),
+      Node(3,  3,   1.0,   0.0,   0.0, NOP),
 
-      Node(3, 8, 1.0, 0.0, 0.0, OUTPUT),
-      Node(1, 3, 1.0, 0.0, 0.0, OUTPUT),
+      Node(3,  8,   1.0,   0.0,   0.0, OUTPUT),
+      Node(1,  3,   1.0,   0.0,   0.0, OUTPUT),
     )
+
 
     val graph = Graph(nodes.toArray)
 
-    graph.calculateValues(new InputList(Array(2.0, 1.0)))
-    say(graph.collectTodos.toList)
+    for(ii <- 0 until 5){ graph.run(List(2.0, 1.0)) }
   }
 }
