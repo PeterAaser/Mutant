@@ -16,10 +16,27 @@ sealed trait SM
 sealed trait Input
 sealed trait Output
 
-case object NOP   extends Function
-case object DADD  extends Function
-case object DSUB  extends Function
-case object CONST extends Function
+case object NOP     extends Function
+case object DADD    extends Function
+case object DSUB    extends Function
+case object CONST   extends Function
+case object DMULT   extends Function
+case object DDIV    extends Function
+case object AVG     extends Function
+case object DSQRT   extends Function
+case object DRCP    extends Function
+case object DABS    extends Function
+case object TANH    extends Function
+case object TANH2   extends Function
+case object FACT    extends Function
+case object POW     extends Function
+case object COS     extends Function
+case object SIN     extends Function
+case object MIN     extends Function
+case object MAX     extends Function
+case object IFLTE   extends Function
+case object INDX    extends Function
+case object INCOUNT extends Function
 
 case object INP     extends Function with Input
 case object INPP    extends Function with Input
@@ -113,7 +130,7 @@ class TODOList(size: Int, repr: ListBuffer[(Node, Int)]){
     case FLUSH => repr.clear
     case a: SM => repr.append((n, idx))
   }
-  def get: List[(Node, Int)] = repr.reverse.take(size).toList
+  def get: List[(Node, Int)] = repr.take(size).toList
 }
 object TODOList {
   def apply(size: Int): TODOList = new TODOList(size, new ListBuffer[(Node, Int)])
@@ -122,6 +139,7 @@ object TODOList {
 
 class InputList(repr: Array[Double]){
   var pointer = 0
+  val size = repr.size
   def inp: Double = {
     val r = repr(pointer)
     if(pointer >= (repr.size - 1)) pointer = 0 else pointer += 1
@@ -186,13 +204,44 @@ case class Graph(var nodes: Array[Node]) extends Modifiers {
       val node = nodes(index)
       val c0 = index - node.c0
       val c1 = index - node.c1
-      val nodeValue = node.f match {
-        case x @ NOP     => getNode(c0).value
-        case x @ DADD    => getNode(c0).value + getNode(c1).value
-        case x @ DSUB    => getNode(c0).value - getNode(c1).value
-        case x @ CONST   => node.p0
 
-        case x @ OUTPUT  => getNode(c0).value
+      val arg0 = getNode(c0).value
+      val arg1 = getNode(c1).value
+
+      def factorial(d: Double): Double = {
+        var f = d.toInt
+        var c = 1
+        while(f > 0){
+          c = c*f
+          f -= 1
+        }
+        c.toDouble
+      }
+
+      val nodeValue = node.f match {
+        case x @ NOP     => arg0
+        case x @ DADD    => arg0 + arg1
+        case x @ DSUB    => arg0 - arg1
+        case x @ CONST   => node.p0
+        case x @ DMULT   => arg0 * arg1
+        case x @ DDIV    => if(arg1 == 0.0) 0.0 else arg0/arg1
+        case x @ AVG     => (arg0 + arg1)/2.0
+        case x @ DSQRT   => if(arg0 > 0.0) math.sqrt(arg0) else 0.0
+        case x @ DRCP    => if(arg0 > 0.0) 1/math.sqrt(arg0) else 0.0
+        case x @ DABS    => math.abs(arg0)
+        case x @ TANH    => math.tanh(arg0)
+        case x @ TANH2   => math.tanh(arg0 + arg1)
+        case x @ FACT    => factorial(arg0)
+        case x @ POW     => math.pow(arg0, arg1)
+        case x @ COS     => math.cos(arg0)
+        case x @ SIN     => math.sin(arg0)
+        case x @ MIN     => math.min(arg0, arg1)
+        case x @ MAX     => math.max(arg0, arg1)
+        case x @ IFLTE   => if(arg0 > arg1) 1.0 else 0.0
+        case x @ INDX    => index.toDouble
+        case x @ INCOUNT => inputs.size
+
+        case x @ OUTPUT  => arg0
 
         case x @ INP     => inputs.inp
         case x @ INPP    => inputs.inpp
@@ -266,14 +315,14 @@ object ShittyTest {
       Node(1,  1,   2.0,   0.0,   0.0, NOP),
 
       //   c1  c2   p0     p1     p2
-      Node(3,  7,   2.6,   1.3,   -8.0, DUP),
+      Node(3,  7,   2.6,   1.3,   3.0, SHIFTCONN2),
 
       Node(3,  4,   0.0,   0.0,   0.0, NOP),
 
       Node(2,  5,   0.0,   0.0,   0.0, DSUB),
       Node(3,  3,  -1.0,   0.0,   0.0, CONST),
 
-      Node(3,  3,   1.0,   0.0,   0.0, NOP),
+      Node(3,  3,   1.0,   0.0,   0.0, COPYSTOP),
 
       Node(3,  8,   1.0,   0.0,   0.0, OUTPUT),
       Node(1,  3,   1.0,   0.0,   0.0, OUTPUT),

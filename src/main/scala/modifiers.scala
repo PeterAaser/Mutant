@@ -83,8 +83,10 @@ trait Modifiers {
         dsay(s"overwriting nodes from [$readFrom, $readTo] to [$writeTo, ${writeTo + len}]")
         (nodes.slice(0, writeTo) ++ splice ++ nodes.slice(writeTo + len, size), true)
       }
-      else
+      else {
+        dsay(s"$x failed")
         (nodes, false)
+      }
     }
 
 
@@ -102,8 +104,10 @@ trait Modifiers {
         dsay(s"duplicating nodes from [$readFrom, $readTo] into [$destination, ${destination + len}]")
         (nodes.slice(0, destination) ++ splice ++ nodes.slice(destination, size), true)
       }
-      else
+      else {
+        dsay(s"$x failed")
         (nodes, false)
+      }
     }
 
 
@@ -111,14 +115,14 @@ trait Modifiers {
       Copy the nodes between (P0) and (P0 + P1) and insert after (P0 + P2).
       */
     case x @ DU2 => {
-      val readFrom     = clamp(node.p0.floorInt)
-      val readTo       = clamp(node.p0.floorInt + node.p1.floorInt)
+      val readFrom    = clamp(node.p0.floorInt)
+      val readTo      = clamp(node.p0.floorInt + node.p1.floorInt)
       val destination = clamp(node.p0.floorInt + node.p2.floorInt)
       val len         = readTo - readFrom
 
       if(readFrom < readTo){
         val splice = nodes.slice(readFrom, readTo)
-        dsay(s"readlicating nodes from [$readFrom, $readTo] into [$destination, ${destination + len}]")
+        dsay(s"duplicating nodes from [$readFrom, $readTo] into [$destination, ${destination + len}]")
         (nodes.slice(0, destination) ++ splice ++ nodes.slice(destination, size), true)
       }
       else{
@@ -135,22 +139,25 @@ trait Modifiers {
       If the destination occurs before the copy area, the node is invalid to avoid cycles 
       */
     case x @ DU3 => {
-      val dupFrom       = clamp(node.p0.floorInt)
-      val dupTo         = clamp(node.p0.floorInt + node.p1.floorInt)
+      val readFrom      = clamp(node.p0.floorInt)
+      val readTo        = clamp(node.p0.floorInt + node.p1.floorInt)
       val destination   = clamp(node.p0.floorInt + node.p2.floorInt)
-      val shiftDistance = destination - dupFrom
+      val shiftDistance = destination - readFrom
+      val len           = readTo - readFrom
 
-      if((dupFrom < dupTo) && (shiftDistance > 0)){
-        val splice = nodes.slice(dupFrom, dupTo)
+      if((readFrom < readTo) && (shiftDistance > 0)){
+        val splice = nodes.slice(readFrom, readTo)
         for(ii <- 0 until splice.size){
           splice(ii) = splice(ii).copy(
             c0 = splice(ii).c0 + shiftDistance,
             c1 = splice(ii).c1 + shiftDistance
           )
         }
+        dsay(s"duplicating nodes from [$readFrom, $readTo] into [$destination, ${destination + len}], preserving connections")
         (nodes.slice(0, destination) ++ splice ++ nodes.slice(destination, size), true)
       }
       else{
+        dsay(s"$x failed")
         (nodes, false)
       }
     }
@@ -161,18 +168,20 @@ trait Modifiers {
       at position (P0 + idx + P1). During the copy, the c_ij of copied nodes are multiplied by P2.
       */
     case x @ DU4 => {
-      val dupFrom       = clamp(node.p0.floorInt + idx)
-      val dupTo         = clamp(dupFrom + node.p1.floorInt)
+      val readFrom      = clamp(node.p0.floorInt + idx)
+      val readTo        = clamp(readFrom + node.p1.floorInt)
       val destination   = clamp(node.p0.floorInt + node.p1.floorInt + idx)
+      val len           = readTo - readFrom
 
-      if(dupFrom < dupTo){
-        val splice = nodes.slice(dupFrom, dupTo)
+      if(readFrom < readTo){
+        val splice = nodes.slice(readFrom, readTo)
         for(ii <- 0 until splice.size){
           splice(ii) = splice(ii).copy(
             c0 = (splice(ii).c0.toDouble * node.p2).floorInt,
             c1 = (splice(ii).c1.toDouble * node.p2).floorInt
           )
         }
+        dsay(s"duplicating nodes from [$readFrom, $readTo] into [$destination, ${destination + len}], scaling connections")
         (nodes.slice(0, destination) ++ splice ++ nodes.slice(destination, size), true)
       }
       else{
@@ -192,11 +201,12 @@ trait Modifiers {
       */
     case x @ COPYTOSTOP => {
       val copyStop = {
-        val cs = nodes.indexWhere(n => n.f == COPYSTOP, idx)
+        val cs = nodes.indexWhere(n => n.f == COPYSTOP, idx) + 1
         if(cs == -1) size else cs
       }
 
       val copySlice = nodes.slice(idx, copyStop)
+      dsay(s"Duplicating nodes from [$idx, $copyStop] to ${copyStop + 1}")
       (nodes.slice(0, copyStop) ++ copySlice ++ nodes.slice(copyStop, size), true)
     }
 
@@ -207,13 +217,22 @@ trait Modifiers {
     case x @ SHIFTCONN => {
       val shiftFrom = clamp(node.p0.floorInt + idx)
       val shiftTo   = clamp(shiftFrom + node.p1.floorInt)
-      for(ii <- shiftFrom until shiftTo){
-        nodes(ii) = nodes(ii).copy(
-          c0 = nodes(ii).c0 + node.p2.floorInt,
-          c1 = nodes(ii).c1 + node.p2.floorInt
-        )
+      val shiftBy   = node.p2.floorInt
+
+      if((shiftBy > 0) && (shiftFrom < shiftTo)){
+        for(ii <- shiftFrom until shiftTo){
+          nodes(ii) = nodes(ii).copy(
+            c0 = nodes(ii).c0 + node.p2.floorInt,
+            c1 = nodes(ii).c1 + node.p2.floorInt
+          )
+        }
+        dsay(s"Shifted node connections at [$shiftFrom, $shiftTo] by $shiftBy")
+        (nodes, true)
       }
-      (nodes, shiftFrom < shiftTo)
+      else{
+        dsay(s"Shifted node connections at [$shiftFrom, $shiftTo] by $shiftBy failed")
+        (nodes, false)
+      }
     }
 
 
@@ -224,15 +243,22 @@ trait Modifiers {
     case x @ SHIFTCONN2 => {
       val shiftFrom = clamp(node.p0.floorInt + idx)
       val shiftTo   = clamp(shiftFrom + node.p1.floorInt)
-      if(node.p2 > 0.0){
+      val scaleBy   = node.p2
+
+      if((node.p2 > 0.0) && (shiftFrom < shiftTo)){
         for(ii <- shiftFrom until shiftTo){
           nodes(ii) = nodes(ii).copy(
-            c0 = (nodes(ii).c0.toDouble * node.p2).floorInt,
-            c1 = (nodes(ii).c1.toDouble * node.p2).floorInt
+            c0 = (nodes(ii).c0.toDouble * scaleBy).floorInt,
+            c1 = (nodes(ii).c1.toDouble * scaleBy).floorInt
           )
         }
+        dsay(s"scaled node connections at [$shiftFrom, $shiftTo] by $scaleBy")
+        (nodes, true)
       }
-      (nodes, (node.p2 > 0.0) && (shiftFrom < shiftTo))
+      else {
+        dsay(s"$x failed")
+        (nodes, false)
+      }
     }
 
 
