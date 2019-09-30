@@ -12,6 +12,8 @@ object IntBonusOps {
       val a = i % n
       if(a > 0) a else a + n
     }
+
+    def min1 = if(i > 0) i else 1
   }
 }
 
@@ -34,6 +36,23 @@ object utils {
     println(Console.YELLOW + s"[${fname}: ${sourcecode.Line()}]" + color + s"\n$word" + Console.RESET)
   }
 
+  implicit val debug = true
+  def dsay(a: => Any)(implicit filename: sourcecode.File, line: sourcecode.Line, debug: Boolean) = if(debug) say(a)(filename, line)
+
   def expDecayStep(factor: Float, base: Float, x: Float): Float =
     base + (x - base)*math.exp(-factor).toFloat
+
+
+  def hardcode[A](a: A)(implicit filename: sourcecode.File, line: sourcecode.Line): A = {
+    val fname = filename.value.split("/").last
+    println(Console.YELLOW + s"[${fname}: ${sourcecode.Line()}]" + Console.RED + " Warning, using magic hardcoded value" + Console.RESET)
+    a
+  }
 }
+
+case class Params(
+  initNodes             : Int    = 10,
+  mutationRate          : Double = 0.0,
+  connectionMutationMax : Int    = 5,
+  paramMutationMax      : Double = 5.0,
+)

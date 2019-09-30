@@ -9,8 +9,6 @@ trait Modifiers {
   def nodes: Array[Node]
   def clamp(n: Int): Int = if(n < 0) 0 else if(n >= size) size - 1 else n
 
-  val debug = true
-  def dsay(a: Any)(implicit filename: sourcecode.File, line: sourcecode.Line) = if(debug) say(a)(filename, line)
 
   def modify(node: Node, idx: Int): (Array[Node], Boolean) = node.f match {
 

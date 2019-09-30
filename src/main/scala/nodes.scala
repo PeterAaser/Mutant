@@ -41,6 +41,7 @@ case object INCOUNT extends Function
 case object INP     extends Function with Input
 case object INPP    extends Function with Input
 case object SKIPINP extends Function with Input
+
 case object OUTPUT  extends Function with Output
 
 case object ADD   extends Function with SM
@@ -75,6 +76,7 @@ case class Node(c0: Int, c1: Int, p0: Double, p1: Double, p2: Double, f: Functio
       Console.RED ++ s"[$f, $c0, $c1]" ++ Console.RESET
   }
 }
+
 
 object Node {
 
@@ -113,12 +115,12 @@ object Node {
 
   def randomNode: Node = {
     Node(
-      Random.nextInt(5),
-      Random.nextInt(5),
+      Random.nextInt(9).min1,
+      Random.nextInt(9).min1,
 
-      (5.0 * Random.nextDouble) - 2.5,
-      (5.0 * Random.nextDouble) - 2.5,
-      (5.0 * Random.nextDouble) - 2.5,
+      (1.0 - Random.nextDouble) * 5.0,
+      (1.0 - Random.nextDouble) * 5.0,
+      (1.0 - Random.nextDouble) * 5.0,
 
       randomFunction
     )
@@ -127,8 +129,9 @@ object Node {
 
 class TODOList(size: Int, repr: ListBuffer[(Node, Int)]){
   def append(n: Node, idx: Int): Unit = n.f match {
-    case FLUSH => repr.clear
-    case a: SM => repr.append((n, idx))
+    case FLUSH                       => {dsay("*toilet sounds*"); repr.clear}
+    case a: SM if (size > repr.size) => repr.append((n, idx))
+    case _                           => ()
   }
   def get: List[(Node, Int)] = repr.take(size).toList
 }
@@ -163,6 +166,7 @@ case class Graph(var nodes: Array[Node]) extends Modifiers {
 
   def size = nodes.size
   def getNode(n: Int): Node = if(n < 0) nodes(0) else nodes(n)
+  override def clone = new Graph(nodes.clone)
 
   def appendOutputs: List[Int] = {
     val traversalOrder = new ListBuffer[Int]
@@ -180,6 +184,7 @@ case class Graph(var nodes: Array[Node]) extends Modifiers {
 
   def appendNeeded(n: Int, traversalOrder: ListBuffer[Int]): Unit = {
     nodes(n).known = true
+    // dsay(traversalOrder.toList)
     nodes(n).f match {
       case x: Function with Input => traversalOrder.append(n)
       case x: Function => {
@@ -195,6 +200,7 @@ case class Graph(var nodes: Array[Node]) extends Modifiers {
     val buf = new ListBuffer[Int]()
     val outputs = appendOutputs
     outputs.foreach(n => appendNeeded(n, buf))
+    // dsay(buf.toList)
     buf.toList
   }
 
@@ -260,13 +266,24 @@ case class Graph(var nodes: Array[Node]) extends Modifiers {
 
   // TODO: I don't like this way of collecting TODO nodes.
   // Needs verification
+  /**
+    When an SM node is called, the process changes slightly. If an SM node is ‘activated’; 
+    then its self-modification instructions are added to a list of pending manipulations 
+    which is called the To-Do list. 
+    The modifications in this list are then performed between iterations. 
+    Note that SM active instructions are added to the To-Do list in a left-to-right traversal 
+    of the encoded graph. 
+    It was decided that SM nodes should be activated in a way that is dependent on the data presented to them.
+    */
   def collectTodos: List[(Node, Int)] = {
     val todo = TODOList(2)
     for(ii <- 0 until size){
       nodes(ii).f match {
         case x: Function with SM if nodes(ii).known => {
-          if(getNode(ii - nodes(ii).c0).value >= getNode(ii - nodes(ii).c1).value)
+          if(getNode(ii - nodes(ii).c0).value >= getNode(ii - nodes(ii).c1).value){
             todo.append(nodes(ii), ii)
+            dsay(todo.get)
+          }
         }
         case _ => ()
       }
@@ -279,6 +296,7 @@ case class Graph(var nodes: Array[Node]) extends Modifiers {
     val todoList = collectTodos
     var done = false
     var idx = 0
+    say(s"applying TODO items: $todoList")
     while((!done) && todoList.isDefinedAt(idx)){
       val (next, success) = Function.tupled(modify _)(todoList(idx))
       done = success
@@ -297,6 +315,8 @@ case class Graph(var nodes: Array[Node]) extends Modifiers {
     val output = calculateValues(new InputList(input.toArray))
     say(nodes.toList.mkString("\n","\n", "\n"))
     val changed = applyTodos
+    if(!changed)
+      say("No changes were done")
     nodes.foreach(_.reset)
     (changed, output)
   }
@@ -329,8 +349,21 @@ object ShittyTest {
     )
 
 
-    val graph = Graph(nodes.toArray)
+    // val graph = Graph(nodes.toArray)
+    implicit val params = Params(
+      100,
+      0.0,
+      5,
+      5.0
+    )
 
-    for(ii <- 0 until 5){ graph.run(List(2.0, 1.0)) }
+    val graph = Genetics.generateRandom
+
+    val clone = graph.clone
+
+    for(ii <- 0 until 30){
+      clone.run(List.fill(3)(5.0 - Random.nextInt(10).toDouble))
+    }
+    Genetics.mutateNode(graph)
   }
 }
