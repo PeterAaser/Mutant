@@ -4,6 +4,14 @@ resolvers += "Sonatype Releases" at "https://oss.sonatype.org/content/repositori
 
 resolvers += Resolver.sonatypeRepo("releases")
 
+Compile / compile := (Compile / compile).dependsOn(
+  Def.task {
+    streams.value.log.info("\n")
+    streams.value.log.info("Maybe it will work this time...")
+    streams.value.log.info("\n\n\n\n\n\n\n")
+  }
+).value
+
 ThisBuild / version := "0.1.0"
 inThisBuild(Seq(
   scalacOptions ++= compilerFlags
@@ -14,7 +22,7 @@ addCompilerPlugin("org.typelevel" %% "kind-projector" % "0.10.3")
 lazy val root = (project in file("."))
   .settings(
     name := "scalapagos",
-    scalaVersion := "2.12.9",
+    scalaVersion := "2.13.0",
     libraryDependencies ++= deps.value
   )
 
@@ -42,8 +50,6 @@ val compilerFlags = Seq(
     // Existential types (besides wildcard types) can be written and inferred
     "-language:existentials",
 
-    // Turn on future language features
-    "-Xfuture",
 
     // Allows 2 second as opposed to 2.second
     // Generally adviced against, but I kinda like having them
@@ -51,7 +57,7 @@ val compilerFlags = Seq(
 
     // Makes inference work better for partially parametrized types
     // such as foo[F[_], A]
-    "-Ypartial-unification",
+    // "-Ypartial-unification",
 
     // Completery moronic discarding of values.
     // Had a really nasty bug where IO[IO[Unit]] was accepted when the signature was IO[Unit]

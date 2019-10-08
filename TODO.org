@@ -1,2 +1,70 @@
-* To-Do List
-  Needs to collect the relative address of activated nodes
+* Mold rules
+** For each step, run diffusion and cyto plasma transfer.
+   Cytoplasma cannot be solely represented with diffusion due to SUCC
+   
+** Cell state
+   A cell is defined by its genome and its internal state
+   Physically speaking a cell has a certian max amount of cytoplasm, however this can probably be 
+   handled by diffusion and transfer.
+
+** New cells
+   If pressure is large enough, and cell exists at a frontier (i.e has 3 or less neighbors)
+   a new cell is generated. Based on parameters such as gene size this takes some amount of
+   energy in order to generate a new nuclei.
+   
+** Cell death
+   If a cell has less than some treshhold of cytoplasma it dies. This can be caused by excessive
+   SUCC from neighboring cells, less cytoplasma in general, or a sell maintaining negative SUCC.
+
+*** Nuclei death? 
+    It might be useful for a cell to commit die, replacing it with a new genome, essentially
+    resetting itself.
+   
+** Energy and food
+   As energy squares are colonized, energy as well as chemical markers will be produced.
+   Energy is the currency spent for making signaling proteins, new nuclei, spores, SUCC and
+   more cytoplasma 
+*** Energy and cytoplasma
+    generation of cytoplasma could possibly require energy and water as a second resource, either
+    represented by a different square, or as a process that can only be do at cell wall squares.
+    
+** Cell self modification
+   Should probably be aggregated, thus offloading chemical interactions to various signalling proteins.
+    
+* Doing
+** TODO Special squares (food)
+* Later
+** TODO Drain resources over time
+** TODO Parametrise Cell control
+** TODO Add TODO items
+* Maybe
+** TODO Special squares (water)
+* Done
+** DONE Better food generation algorithm
+** DONE Running simulator
+*** DONE Figure out what is going on with buffer switching etc
+*** DONE Make it not crash
+*** DONE Instantiate init genome(s)
+** DONE Improve renderer
+** DONE Cell control
+*** DONE Implement SMCGP for Slime mold
+    How much repurposing is necessary?
+    Turn Graph into abstract class maybe?
+
+*** DONE Interface between genome and chemical gradients.
+    Aka create a runGenome method
+
+**** DONE Create genome "command" => cell state function (runGenome)
+     Genome should govern how the cell spends energy to generate
+     + cytoplasma
+     + SUCC
+     + signaling proteins
+     + spores (points)?
+
+     Its inputs should be
+     + signaling proteins
+     + food (possibly conveyed by signalling proteins?)
+     + pressure?
+   
+** DONE Cell genesis
+** DONE Cell death

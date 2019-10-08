@@ -14,29 +14,32 @@ object IntBonusOps {
     }
 
     def min1 = if(i > 0) i else 1
+    def downto (n: Int) = i to n by -1
+    def downtil (n: Int) = i until n by -1
+
   }
 }
 
 object DoubleBonusOps {
   implicit class doubleBonusOps(d: Double){
     def floorInt: Int = d.floor.toInt
+    def max1: Double = if(d > 1.0) 1.0 else d
+    def sqrtOr0: Double = if(d < 0.0) 0.0 else math.sqrt(d)
   }
 }
 
 object utils {
   def say(word: Any, color: String = Console.RESET, timestamp: Boolean = false)(implicit filename: sourcecode.File, line: sourcecode.Line): Unit = {
-    cats.effect.IO
     val fname = filename.value.split("/").last
     println(Console.YELLOW + s"[${fname}: ${sourcecode.Line()}]" + color + s" $word" + Console.RESET)
   }
 
   def saylb(word: Any, color: String = Console.RESET, timestamp: Boolean = false)(implicit filename: sourcecode.File, line: sourcecode.Line): Unit = {
-    cats.effect.IO
     val fname = filename.value.split("/").last
     println(Console.YELLOW + s"[${fname}: ${sourcecode.Line()}]" + color + s"\n$word" + Console.RESET)
   }
 
-  implicit val debug = true
+  implicit val debug = false
   def dsay(a: => Any)(implicit filename: sourcecode.File, line: sourcecode.Line, debug: Boolean) = if(debug) say(a)(filename, line)
 
   def expDecayStep(factor: Float, base: Float, x: Float): Float =

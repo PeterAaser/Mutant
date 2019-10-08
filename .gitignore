@@ -1,4 +1,5 @@
 .ensime
+.metals
 .bloop
 .projectile
 target/
