@@ -32,14 +32,23 @@
    Should probably be aggregated, thus offloading chemical interactions to various signalling proteins.
     
 * Doing
-** TODO Special squares (food)
+** TODO Add point generation (sporulation?)
+   I want sporulation to have an evolution path.
+   To begin with the slime mold may create spores everywhere,
+   however doing spores at one spot only might be a better strategy.
+   Maybe just have the ability to make spores and figure out a better scheme later, if at all
 * Later
 ** TODO Drain resources over time
 ** TODO Parametrise Cell control
 ** TODO Add TODO items
+** TODO Separate running and altering genome
 * Maybe
 ** TODO Special squares (water)
+** TODO Special food (requiring signals)
+** TODO Handle mutation through sporulation
+   Allows spores to inherit genetic memory, and possibly mutation?
 * Done
+** DONE Handle special squares (food)
 ** DONE Better food generation algorithm
 ** DONE Running simulator
 *** DONE Figure out what is going on with buffer switching etc

@@ -17,6 +17,8 @@ object IntBonusOps {
     def downto (n: Int) = i to n by -1
     def downtil (n: Int) = i until n by -1
 
+    def minClamp(n: Int) = if(i < n) n else i
+
   }
 }
 

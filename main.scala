@@ -15,7 +15,7 @@ object main {
     val dur = Fungus.Mold(30)
     say(printFood(dur.food))
     for(ii <- 0 until 110){
-      say(printSlimeMold(dur.cells))
+      say(printPetri(dur.cells, dur.food))
       dur.stepFull
     }
   }

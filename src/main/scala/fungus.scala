@@ -89,14 +89,20 @@ object Fungus {
     lazy val splitThreshold = hardcode(10.0)
     lazy val killThreshold = hardcode(0.4)
 
+    lazy val consumptionSpeed = hardcode(0.1)
+
     val diffusionRates: Array[Double] = List.fill(10)(diffusionFactor).toArray
 
     val liveCells : ArrayBuffer[(Int, Int)]
     val genomes   : ArrayBuffer[CellControl]
     var cells     : Array[Array[Option[Cell]]]
     var cellsB    : Array[Array[Option[Cell]]]
-
     val food      : Array[Array[Double]]
+
+
+    // read: points
+    var sporesReleased = 0.0
+
 
     /** Transfer based on osmosis */
     private def transfer(ii: Int, jj: Int, recipient: Cell): Unit = {
@@ -150,7 +156,7 @@ object Fungus {
       * Diffusion moves protein gradients, whereas osmosis
       * moves cyto and energy (which in turn may carry proteins)
       */
-    def stepOsmosis: Unit = liveCells.foreach{ case(ii, jj) =>
+    private def stepOsmosis: Unit = liveCells.foreach{ case(ii, jj) =>
       val recipient = cellsB(ii)(jj).get
 
       // Clear out contents of recieving buffer
@@ -161,8 +167,22 @@ object Fungus {
 
 
 
+    private def stepConsumption: Unit = {
+      liveCells.foreach{ case(x, y) =>
+        if(food(x)(y) > 0.0){
+          val energy = cellsB(x)(y).get(Cell.ENERGY)
+          val cyto   = cellsB(x)(y).get(Cell.CYTO)
+          val consumption = math.min(math.max(cyto, 10.0) * consumptionSpeed, food(x)(y))
 
-    def populateLiveCells: Unit =
+          food(x)(y) -= consumption
+          cellsB(x)(y).get(Cell.ENERGY) += consumption
+        }
+      }
+    }
+
+
+
+    private def populateLiveCells: Unit =
       for(ii <- 0 until cells.size){
         for(jj <- 0 until cells.size){
           if(cells(ii)(jj).isDefined) liveCells.append((ii, jj))
@@ -214,7 +234,7 @@ object Fungus {
       * Kills all cells whose cytoplasma is under a certain treshhold.
       * Contents are lost (subject to change) 
       */
-    def pruneCells: Unit = {
+    private def pruneCells: Unit = {
       for(ii <- (liveCells.length - 1) downto 0){
         val (x, y) = liveCells(ii)
         val cell = cells(x)(y).get
@@ -295,16 +315,23 @@ object Fungus {
       def getRingNo(x: Int, y: Int) =
         math.max(math.abs(x - dim/2), math.abs(y - dim/2))
 
-      def manhattanDist(x: Int, y: Int) =
-        math.abs(x - dim/2) + math.abs(y - dim/2)
-
-      for(ringNo <- 1 until dim/2){
+      for(ringNo <- 1 until (dim/2 - 1)){
         val eligible    = util.Random.shuffle(indices.filter{ case(x,y) => getRingNo(x,y) == ringNo })
-        val foodSquares = 6 + ringNo
-        val taken       = eligible.take(4)
+        val foodSquares = (10 - ringNo).minClamp(2)
+        val taken       = eligible.take(foodSquares)
 
-        taken.foreach{ case(x, y) => food(x)(y) = ringNo }
+        if(ringNo > dim/3)
+          taken.foreach{ case(x, y) =>
+            food(x)(y)     = ringNo
+            food(x+1)(y)   = ringNo
+            food(x-1)(y)   = ringNo
+            food(x)(y+1) = ringNo
+            food(x)(y-1) = ringNo
+          }
+        else
+          taken.foreach{ case(x, y) => food(x)(y) = ringNo }
       }
+
       food
     }
 
@@ -337,29 +364,15 @@ object Fungus {
 
       val signals = Array.fill(5)(1.0)
 
-      //                          CONTROL SUCC, cyto, energy
+      //                           CONTROL  SUCC,  cyto,  energy
       m.cells(15)(15) =  Some(Array(0.0,    1.0,   80.0,  1.0) ++ signals.clone)
-      // m.cells(3)(5) =  Some(Array(1.0,    1.0,    0.8,  1.0) ++ signals.clone)
-      // m.cells(4)(5) =  Some(Array(2.0,    1.0,    0.8,  1.0) ++ signals.clone)
-      // m.cells(5)(5) =  Some(Array(3.0,    1.0,    0.5,  1.0) ++ signals.clone)
-      // m.cells(6)(5) =  Some(Array(4.0,    1.0,    0.8,  1.0) ++ signals.clone)
-      // m.cells(7)(5) =  Some(Array(5.0,    1.0,    0.8,  1.0) ++ signals.clone)
 
-      (0 until 6).foreach{ _ =>
+      (0 until m.cells.size).foreach{ _ =>
         m.genomes.append(CellControl.random(30))
-        say(m.genomes.size)
       }
-
 
       // These values does not matter
       m.cellsB(15)(15) =  Some(Array(0.0,    1.0,   80.0,  1.0) ++ signals.clone)
-      // m.cellsB(2)(5) =  Some(Array(0.0,    1.0,     1.0, 2.0) ++ signals.clone)
-      // m.cellsB(3)(5) =  Some(Array(1.0,    1.0,     1.0, 0.0) ++ signals.clone)
-      // m.cellsB(4)(5) =  Some(Array(2.0,    1.0,     1.0, 0.0) ++ signals.clone)
-      // m.cellsB(5)(5) =  Some(Array(3.0,    1.0,     1.0, 0.0) ++ signals.clone)
-      // m.cellsB(6)(5) =  Some(Array(4.0,    1.0,     1.0, 0.0) ++ signals.clone)
-      // m.cellsB(7)(5) =  Some(Array(5.0,    1.0,     1.0, 5.0) ++ signals.clone)
-
       m.populateLiveCells
       m
     }
