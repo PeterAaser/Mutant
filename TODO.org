@@ -1,53 +1,79 @@
-* Mold rules
-** For each step, run diffusion and cyto plasma transfer.
-   Cytoplasma cannot be solely represented with diffusion due to SUCC
+* Rules
+** Cells
+   How about a sort of simulated cell wall?
+   Osmotic pressure gets to stay.
+   We add viscosity which slows down flow, both in and outbound.
    
-** Cell state
-   A cell is defined by its genome and its internal state
-   Physically speaking a cell has a certian max amount of cytoplasm, however this can probably be 
-   handled by diffusion and transfer.
+** Changing how SUCC works?
+   Perceived pp
+   
+** Dropping diffusion?
+   Not yet at least
+   
+** Cell input needs to have a crowdedness input
+   
+** Inertia?
+   Aka use more than SUCC and pressure to decide next state?
+   Does not seem necessary at the timescale for biological moulds, but it could
+   speed up simulation.
+   
+** Special desire to split value?
 
-** New cells
-   If pressure is large enough, and cell exists at a frontier (i.e has 3 or less neighbors)
-   a new cell is generated. Based on parameters such as gene size this takes some amount of
-   energy in order to generate a new nuclei.
-   
-** Cell death
-   If a cell has less than some treshhold of cytoplasma it dies. This can be caused by excessive
-   SUCC from neighboring cells, less cytoplasma in general, or a sell maintaining negative SUCC.
-
-*** Nuclei death? 
-    It might be useful for a cell to commit die, replacing it with a new genome, essentially
-    resetting itself.
-   
-** Energy and food
-   As energy squares are colonized, energy as well as chemical markers will be produced.
-   Energy is the currency spent for making signaling proteins, new nuclei, spores, SUCC and
-   more cytoplasma 
-*** Energy and cytoplasma
-    generation of cytoplasma could possibly require energy and water as a second resource, either
-    represented by a different square, or as a process that can only be do at cell wall squares.
-    
-** Cell self modification
-   Should probably be aggregated, thus offloading chemical interactions to various signalling proteins.
-    
 * Doing
-** TODO Add point generation (sporulation?)
-   I want sporulation to have an evolution path.
-   To begin with the slime mold may create spores everywhere,
-   however doing spores at one spot only might be a better strategy.
-   Maybe just have the ability to make spores and figure out a better scheme later, if at all
+** TODO More food smell
+** TODO Make cells more resilient when pruning is likely to break the network
+** TODO Move to more robust case class for cells
+   What about actually pinning down coordinates in the cell?
+
 * Later
-** TODO Drain resources over time
+** TODO Figure out discrepancy in test result and final rendering
+** TODO Memoize calculations in a more cache optimal way? I.e put all ops in a packed array
+** TODO Try to isolate pruning yielding massive amounts of cyto.
+   Maybe make this a test that always runs?
+** TODO Change SM policy
+   Only allow self modification at certain intervals
+** TODO Move cyto, control and friends to case class members, only keep signals in array.
+** TODO Make cell death transfer cyto
+** TODO Start with a maze to force exploration?
+*** DONE Refactor representation so adding walls wont be such a pain
+*** DONE More sophisticated food layout? Try spirals for instance
+**** DONE Spiral
+
+*** TODO Make a maze
 ** TODO Parametrise Cell control
 ** TODO Add TODO items
 ** TODO Separate running and altering genome
 * Maybe
-** TODO Special squares (water)
+** TODO Figure out what is going wrong with listbuffers
 ** TODO Special food (requiring signals)
 ** TODO Handle mutation through sporulation
    Allows spores to inherit genetic memory, and possibly mutation?
 * Done
+** DONE Allow multiple splits per cycle
+** DONE Give score based on consumed food total rather than spores
+** DONE Figure out why cultures die out so fast
+   Even with no rent the little fucks die off
+** DONE Memoize SMGC
+*** DONE Something is very fucked up for listBuffer
+    Seems like just forcing it fixes at least some of the perf issues
+    Solution: Use ArrayBuffer
+** DONE Increase amount of available signal proteins
+** DONE Add food scent to adjecent squares
+** DONE Find out why scores can be negative
+   Happens due to cells being in negative cytoplasma
+
+** DONE Figure out where NaN poisoning happens
+   Everywhere!!
+** DONE Skip A and B buffer, keep buffers in each cell
+** DONE Add GA runner
+*** DONE Mutate genome
+** DONE Add point generation (sporulation?)
+   I want sporulation to have an evolution path.
+   To begin with the slime mold may create spores everywhere,
+   however doing spores at one spot only might be a better strategy.
+   Maybe just have the ability to make spores and figure out a better scheme later, if at all
+** DONE Drain resources over time
+** DONE Remove ENERGY, rely solely on CYTO
 ** DONE Handle special squares (food)
 ** DONE Better food generation algorithm
 ** DONE Running simulator
@@ -77,3 +103,5 @@
    
 ** DONE Cell genesis
 ** DONE Cell death
+
+* Thoughts

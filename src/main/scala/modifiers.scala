@@ -10,6 +10,7 @@ trait Modifiers {
   var nodes: Array[Node]
   def clamp(n: Int): Int = if(n < 0) 0 else if(n >= size) size - 1 else n
 
+  implicit var debugPrint = false
   def modify(idx: Int): Boolean = {
 
     val p0 = nodes(idx).p0
@@ -307,8 +308,8 @@ trait Modifiers {
         */
       case CHF => {
         val changeIdx = clamp(p0.floorInt)
-        say("USING UNIMPLEMENTED SM NODE")
-        // nodes(changeIdx) = nodes(changeIdx).copy(f = Node.lookupTable(node.p1.floorInt.modp(Node.lookupTable.size - 1)))
+        val nextFunction = p1.floorInt.modp(NodeLookup.names.size - 1)
+        nodes(changeIdx) = nodes(changeIdx).copy(f = nextFunction)
         true
       }
 

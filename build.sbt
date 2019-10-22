@@ -69,3 +69,6 @@ val compilerFlags = Seq(
     // "-Xfatal-warnings",
     // "-Xlint:_,-missing-interpolator,-adapted-args"
 )
+
+cancelable in Global := true
+fork := true

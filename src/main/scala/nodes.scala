@@ -53,6 +53,45 @@ object NodeLookup {
   val CHC        = 33
   val CHF        = 34
   val CHP        = 35
+
+  val names = List(
+    "INP       " -> 0,
+    "NOP       " -> 1,
+    "DADD      " -> 2,
+    "DSUB      " -> 3,
+    "CONST     " -> 4,
+    "DMULT     " -> 5,
+    "DDIV      " -> 6,
+    "AVG       " -> 7,
+    "DSQRT     " -> 8,
+    "DRCP      " -> 9,
+    "DABS      " -> 10,
+    "TANH      " -> 11,
+    "TANH2     " -> 12,
+    "POW       " -> 13,
+    "COS       " -> 14,
+    "SIN       " -> 15,
+    "MIN       " -> 16,
+    "MAX       " -> 17,
+    "IFLTE     " -> 18,
+    "INDX      " -> 19,
+    "OUTPUT    " -> 20,
+    "DEL       " -> 21,
+    "MOV       " -> 22,
+    "OVR       " -> 23,
+    "DUP       " -> 24,
+    "DU2       " -> 25,
+    "DU3       " -> 26,
+    "DU4       " -> 27,
+    "FLUSH     " -> 28,
+    "COPYTOSTOP" -> 29,
+    "COPYSTOP  " -> 30,
+    "SHIFTCONN " -> 31,
+    "SHIFTCONN2" -> 32,
+    "CHC       " -> 33,
+    "CHF       " -> 34,
+    "CHP       " -> 35,
+  ).map(_.swap).toMap
 }
 
 
@@ -63,9 +102,9 @@ case class Node(c0: Int, c1: Int, p0: Double, p1: Double, p2: Double, f: Int){
 
   override def toString = {
     if(known)
-      Console.GREEN ++ s"$f\t[$c0, $c1]\t" ++ f"$value%1.2f" ++ Console.RESET
-    else
-      Console.RED   ++ s"$f\t[$c0, $c1]\t" ++ f"$value%1.2f" ++ Console.RESET
+      Console.GREEN ++ s"${NodeLookup.names(f)}\t[$c0, $c1]\t" ++ f"$p0%1.2f,\t$p1%1.2f,\t$p2%1.2f.\tValue: $value%1.2f" ++ Console.RESET
+    else                               
+      Console.RED   ++ s"${NodeLookup.names(f)}\t[$c0, $c1]\t" ++ f"$p0%1.2f,\t$p1%1.2f,\t$p2%1.2f.\tValue: $value%1.2f" ++ Console.RESET
   }
 }
 object Node {

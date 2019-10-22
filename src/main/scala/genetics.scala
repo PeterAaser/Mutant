@@ -1,38 +1,55 @@
 package scalapagos
 
-import util.Random
 import IntBonusOps._
 
+/** Only rudimentary mutation supported atm */
 object Genetics {
 
-  // // For now let's just prepend an inp and postpend(?) an output
-  // def generateRandom(implicit params: Params): Graph = {
-  //   val randomNodes = Array.fill[Node](params.initNodes + 2)(Node.randomNode)
-  //   randomNodes(0) = randomNodes(0).copy(f = INP)
-  //   randomNodes(randomNodes.size - 1) = randomNodes(randomNodes.size - 1).copy(f = OUTPUT)
-  //   new Graph(randomNodes)
-  // }
+  /**
+    * Mutates a genome. Probability of mutation is given as the mutationRate parameter in GAParams
+    */
+  def mutate(nodes: Array[Node])(implicit p: GAParams): Array[Node] = {
 
-  // def mutateNode(graph: Graph)(implicit params: Params): Unit = {
-  //   val repr                  = graph.nodes
-  //   val idx                   = Random.nextInt(repr.size - 1)
-  //   val modificationAttribute = Random.nextInt(4)
-  //   import params._
+    import util.Random._
 
-  //   def mutateConnection(c: Int): Int = {
-  //     val next = c + Random.nextInt(connectionMutationMax) - (connectionMutationMax/2)
-  //     next.min1
-  //   }
+    def addNode(node: Node): Array[Node] = {
+      Array(node, Node.randomNode)
+    }
 
-  //   def mutateParam(d: Double): Double = (1.0 - Random.nextDouble) * paramMutationMax
+    def mutateConnection(node: Node): Array[Node] = {
+      if(nextDouble() > 0.5)
+        Array(node.copy(c0 = (node.c0 + (5 - nextInt(10))).min1))
+      else
+        Array(node.copy(c1 = (node.c1 + (5 - nextInt(10))).min1))
+    }
 
-  //   repr(idx) = modificationAttribute match {
-  //     case 0 => repr(idx).copy(c0 = mutateConnection(repr(idx).c0))
-  //     case 1 => repr(idx).copy(c1 = mutateConnection(repr(idx).c1))
-  //     case 2 => repr(idx).copy(p0 = mutateParam(repr(idx).p0))
-  //     case 3 => repr(idx).copy(p1 = mutateParam(repr(idx).p1))
-  //     case 4 => repr(idx).copy(p2 = mutateParam(repr(idx).p2))
-  //     case 5 => repr(idx).copy(f = Node.randomFunction)
-  //   }
-  // }
+    def mutateParam(node: Node): Array[Node] = {
+      val check = nextDouble()
+      if(check > 0.33)
+        Array(node.copy(p0 = (node.p0 + (5.0 - 10.0*nextDouble()))))
+      else if(check > 0.66)
+        Array(node.copy(p1 = (node.p1 + (5.0 - 10.0*nextDouble()))))
+      else
+        Array(node.copy(p2 = (node.p2 + (5.0 - 10.0*nextDouble()))))
+    }
+
+    def mutateFunction(node: Node): Array[Node] = {
+      Array(node.copy(f = nextInt(NodeLookup.names.toList.size)))
+    }
+
+    def removeNode(node: Node): Array[Node] = Array[Node]()
+
+    def mutate(node: Node): Array[Node] = {
+      shuffle(List(mutateConnection(_), mutateParam(_), mutateFunction(_), removeNode(_))).head(node)
+    }
+
+    nodes.flatMap{ node =>
+      if(util.Random.nextDouble() < p.mutationRate){
+        mutate(node)
+      }
+      else
+        Array(node)
+    }
+
+  }
 }

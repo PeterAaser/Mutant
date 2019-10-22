@@ -5,6 +5,7 @@ import IntBonusOps._
 import DoubleBonusOps._
 
 import scala.collection.mutable.ListBuffer
+import scala.collection.mutable.ArrayBuffer
 import cats._
 import cats.Monoid
 import scala.util.Try
@@ -15,6 +16,10 @@ import util.Random
 abstract class SMCG(numOutputs: Int = 5) {
 
   var nodes: Array[Node]
+
+  var traversalOrderMemoized = false
+  var traversalOrder = new ArrayBuffer[Int]()
+
   def size = nodes.size
   def getNode(n: Int): Node = if(n < 0) nodes(0) else nodes(n)
   def clamp(n: Int): Int = if(n < 0) 0 else if(n >= size) size - 1 else n
@@ -27,26 +32,25 @@ abstract class SMCG(numOutputs: Int = 5) {
   def nodeFunctionLookup(lookup: Int, arg0: Double, arg1: Double, p0: Double, idx: Int, input: Array[Double]): Double
   def applySM(idx: Int): Boolean
 
-  def appendOutputs: List[Int] = {
-    val traversalOrder = new ListBuffer[Int]
+  def appendOutputs: Unit = {
     for(ii <- 0 until size){
       if(isOutput(nodes(ii).f))
         traversalOrder.append(ii)
     }
-    traversalOrder.toList
   }
 
 
-  def appendNeeded(n: Int, traversalOrder: ListBuffer[Int]): Unit = {
+  def appendNeeded(n: Int): Unit = {
     nodes(n).known = true
     nodes(n).f match {
       case x: Int if(isInput(x)) => traversalOrder.append(n)
       case x: Int => {
-        if(!getNode(n - nodes(n).c0).known) appendNeeded(clamp(n - nodes(n).c0), traversalOrder)
-        if(!getNode(n - nodes(n).c1).known) appendNeeded(clamp(n - nodes(n).c1), traversalOrder)
+        if(!getNode(n - nodes(n).c0).known) appendNeeded(clamp(n - nodes(n).c0))
+        if(!getNode(n - nodes(n).c1).known) appendNeeded(clamp(n - nodes(n).c1))
         traversalOrder.append(n)
       }
     }
+    // say(s"$n")
   }
 
 
@@ -59,7 +63,7 @@ abstract class SMCG(numOutputs: Int = 5) {
     */
   def calculateValues(inputs: Array[Double]): Array[Double] = {
 
-    getTraversalOrder.foreach{ index =>
+    traversalOrder.foreach{ index =>
       val node = nodes(index)
       val c0 = index - node.c0
       val c1 = index - node.c1
@@ -121,22 +125,34 @@ abstract class SMCG(numOutputs: Int = 5) {
   }
 
 
-  def getTraversalOrder: List[Int] = {
-    val buf = new ListBuffer[Int]()
-    val outputs = appendOutputs
-    outputs.foreach(n => appendNeeded(n, buf))
-    // dsay(buf.toList)
-    buf.toList
+  def calculateTraversalOrder: Unit = {
+    if(!traversalOrderMemoized){
+      traversalOrder = new ArrayBuffer[Int]()
+      appendOutputs
+      traversalOrder.foreach(n => appendNeeded(n))
+
+      /** 
+        * Ensures that all necessary nodes are known before being used.
+        * This should be guaranteed, however sorting also gives better 
+        * read patterns for cache optimality (perf diff not tested)
+        */
+      traversalOrder = traversalOrder.sorted
+    }
+    traversalOrderMemoized = true
   }
 
 
   def run(input: Array[Double]): (Boolean, Array[Double]) = {
+
+    calculateTraversalOrder
+
     val output = calculateValues(input)
-    // say(nodes.toList.mkString("\n","\n", "\n"))
-    val changed = applyTodos
-    // if(!changed)
-    //   say("No changes were done")
+    // val changed = applyTodos
+
+    // if(changed)
+    //   traversalOrderMemoized = false
+
     nodes.foreach(_.reset)
-    (changed, output.toArray)
+    (true, output.toArray)
   }
 }

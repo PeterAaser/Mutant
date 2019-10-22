@@ -27,6 +27,9 @@ object DoubleBonusOps {
     def floorInt: Int = d.floor.toInt
     def max1: Double = if(d > 1.0) 1.0 else d
     def sqrtOr0: Double = if(d < 0.0) 0.0 else math.sqrt(d)
+
+    /** a.maxClamp(b) returns */
+    def roof(d2: Double) = if(d > d2) d2 else d
   }
 }
 
@@ -41,7 +44,6 @@ object utils {
     println(Console.YELLOW + s"[${fname}: ${sourcecode.Line()}]" + color + s"\n$word" + Console.RESET)
   }
 
-  implicit val debug = false
   def dsay(a: => Any)(implicit filename: sourcecode.File, line: sourcecode.Line, debug: Boolean) = if(debug) say(a)(filename, line)
 
   def expDecayStep(factor: Float, base: Float, x: Float): Float =
@@ -54,10 +56,3 @@ object utils {
     a
   }
 }
-
-case class Params(
-  initNodes             : Int    = 10,
-  mutationRate          : Double = 0.0,
-  connectionMutationMax : Int    = 5,
-  paramMutationMax      : Double = 5.0,
-)

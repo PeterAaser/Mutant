@@ -15,6 +15,7 @@ object Dependencies {
     "com.lihaoyi"   %% "fansi" % "0.2.7",
     "org.typelevel" %% "cats-core" % catsVersion,
     "com.lihaoyi"   %% "sourcecode" % "0.1.7", // Scala-JVM
+    "org.scala-lang.modules" %% "scala-parallel-collections" % "0.2.0"
   ))
 
 }

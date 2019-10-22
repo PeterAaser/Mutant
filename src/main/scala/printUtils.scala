@@ -34,16 +34,17 @@ object PrintUtils {
   }
 
 
-  def printPetri(cells: Array[Array[Option[Array[Double]]]], food: Array[Array[Double]]): String = {
-    val cyto = cells.map(_.map(_.map(x => x(2)).getOrElse(0.0)))
-    val withFood = (cyto zip food).map{ case(x, y) => x zip y }
-    withFood.map(_.map{ case(x, y) =>
-      val normalized = ((x/10.0).sqrtOr0*255.0).toInt.min(255)
-      if((x == 0.0) && (y == 0.0))
-        ".."
-      else
-        (fansi.Back.True(normalized, normalized, (y.toInt*20).min(255))("  ")).toString
+  import Fungus._
+  def printPetri(cells: Array[Array[GridContent]], food: Array[Array[Double]]): String = {
+    val withFood = (cells zip food).map{ case(x, y) => x zip y }
+    withFood.map(_.map{
+      case(Cell(state, _), food) => {
+        val cyto = state(1)
+        val normalized = ((cyto/10.0).sqrtOr0*255.0).toInt.min(255)
+        (fansi.Back.True(normalized, normalized, (food.toInt*20).min(255))("  ")).toString
+      }
+      case(Free, food) => (fansi.Back.True(0, 0, (food.toInt*20).min(255))("  ")).toString
+      case(Wall, food) => (fansi.Back.True(255, 255, 255)("  ")).toString
     }.mkString).mkString("\n","\n","\n")
   }
-
 }
