@@ -18,23 +18,28 @@ case class GAParams(
   iterations : Int = 1000
 )
 
-case class Params(
+case class FungusParams(
   diffusionFactor  : Double = 0.05,
   osmosisTransfer  : Double = 0.05,
   splitThreshold   : Double = 1.0,
   killThreshold    : Double = 0.3,
+  maxKillThreshold : Double = 1.0,
   consumptionSpeed : Double = 0.4,
   SUCCcost         : Double = 0.01,
+  initCyto         : Double = 8.0,
+
   rent             : Double = 0.05,
   dim              : Int    = 120,
 
   nSignals         : Int    = 20,
+  foodSignals      : Int    = 3,
 )
 
 
 object GA {
 
   implicit val hurr = GAParams()
+  implicit val durr = FungusParams()
   import hurr._
 
   /**
@@ -44,11 +49,10 @@ object GA {
 
     def run: Unit = {
       val cc   = CellControl(genome.clone)
-      val mold = Fungus.Mold(Params(), cc)
-      val initFood = mold.food.map(_.sum).sum
+      val mold = Fungus.Mold(cc)
+      val initFood = mold.food.map(_.map(_.amount).sum).sum
       for(ii <- 0 until steps){ mold.stepFull }
-      val consumedFood = mold.food.map(_.sum).sum
-      // memoized = true
+      val consumedFood = mold.food.map(_.map(_.amount).sum).sum
       score = initFood - consumedFood
     }
   }
@@ -66,7 +70,7 @@ object GA {
 
     val genome = CellControl.random(genomeInit).nodes
     val cc     = CellControl(genome.clone)
-    val mold   = Fungus.Mold(Params(), cc)
+    val mold   = Fungus.Mold(cc)
 
     for(ii <- 0 until 100){ mold.stepFull }
 
@@ -111,10 +115,10 @@ object GA {
     }
 
     val cc = CellControl(done.reverse.head.genome)
-    val mold = Fungus.Mold(Params(), cc)
+    val mold = Fungus.Mold(cc)
     mold.debugPrint = true
     for(ii <- 0 until 500){
-      say(PrintUtils.printPetri(mold.cells, mold.food))
+      // say(PrintUtils.printPetri(mold.cells, mold.food))
       mold.stepFull
     }
   }

@@ -11,6 +11,8 @@ object GridOps {
   
   implicit class gridOps(private val grid: Array[Array[GridContent]]) extends AnyVal {
 
+    def apply(t: (Int, Int)): GridContent = grid(t._1)(t._2)
+
     def freeNeighbours(ii: Int)(jj: Int): List[(Int, Int)] = {
       val buf = new ArrayBuffer[(Int, Int)](5)
       if(grid.isDefinedAt(ii - 1) && grid(ii - 1).isDefinedAt(jj + 1)) grid(ii - 1)(jj + 1) match{ case Free => buf.append((ii - 1, jj + 1)) ; case _ => ()}

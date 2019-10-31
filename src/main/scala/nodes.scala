@@ -117,3 +117,12 @@ object Node {
     util.Random.nextInt(35)
   )
 }
+
+
+case class CGNode(c0: Int, c1: Int, f: Int){
+  var value = 0.0
+  var used = false
+
+  // override def toString = s"${NodeLookup.names(f)}[$c0, $c1] \t" ++ f"$value%1.2f" ++ Console.RESET
+  override def toString = s"[$c0, $c1]"
+}

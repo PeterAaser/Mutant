@@ -20,12 +20,18 @@
 ** Special desire to split value?
 
 * Doing
+** TODO Regular CGP
+*** TODO Append INP last?
+    In this case appendNeeded must have a special check?
+    Kinda not feeling this
+
 ** TODO More food smell
 ** TODO Make cells more resilient when pruning is likely to break the network
 ** TODO Move to more robust case class for cells
    What about actually pinning down coordinates in the cell?
 
 * Later
+** TODO Move to normal CGP
 ** TODO Figure out discrepancy in test result and final rendering
 ** TODO Memoize calculations in a more cache optimal way? I.e put all ops in a packed array
 ** TODO Try to isolate pruning yielding massive amounts of cyto.

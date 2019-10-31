@@ -28,31 +28,60 @@ case class Cell(
     * Range [0, 1]
     */
   var integrity     : Double,
+  var nextIntegrity : Double,
 
-  signals           : Vector[Double],
+  /**
+    * How much cyto has flowed through the cell.
+    * In order to be less time variable this should
+    * probably be exp decay or something
+    */
+  var flow          : Double,
+
+  signals           : Array[Double],
   nextSignals       : Array[Double]
-) extends GridContent{
+)(implicit params: FungusParams) extends GridContent{
 
-  def next: Cell = copy(
-    cyto    = nextCyto,
-    signals = nextSignals.clone.toVector
-  )
+  def update: Unit = {
+    for(ii <- 0 until signals.size){ signals(ii) = nextSignals(ii) }
+    cyto      = nextCyto
+    viscosity = nextViscosity
+    SUCC      = nextSUCC
+    integrity = nextIntegrity
+  }
 }
+object Cell {
+  def init(idx: Int)(implicit params: FungusParams): Cell = {
+    Cell(idx, params.initCyto, params.initCyto, 0.0, 0.0, 0.0, 0.0, 0.5, 0.5, 0.0, Array.fill(params.nSignals)(0.0), Array.fill(params.nSignals)(0.0))
+  }
+}
+
 case object Free extends GridContent
 case object Wall extends GridContent
 
 /** 
-  * food is defined by its quantity and the signals (smells) it leaves
+  * food is defined by its quantity and the signals (smells) it leaves.
+  * To simplify things food signals are always from 0 to n (so for instance
+  * if food has 4 signals total then the smells will be index 0 to 3.)
+  * 
+  * Smell is defined as (signal * amount)/(distance squared)
   */
 case class Food(
   var amount : Double,
-  signals    : Array[Double]
+  smells     : List[Double]
 ){
+}
+object Food{
+  def apply(amount: Double)(implicit params: FungusParams): Food = {
+    import params._
+    val huh = 0.0 :: List.fill(foodSignals - 1)(util.Random.nextDouble()).sorted
+    val dur = (huh zip huh.tail).map{ case(a, b) => b - a }
+    Food(amount, dur)
+  }
 }
 
 object Fungus {
 
-  abstract class Mold(implicit params: Params) {
+  abstract class Mold(implicit params: FungusParams) {
     import params._
 
 
@@ -106,6 +135,8 @@ object Fungus {
     }
 
 
+    def updateCells: Unit = { liveCells.map(cells.apply(_)).collect{ case cell: Cell => cell.update }; () }
+
 
     /** 
       * Transfer based on diffusion. Does not transfer cytoplasm, doesn't care about SUCC 
@@ -127,17 +158,6 @@ object Fungus {
       cells(ii)(jj) match { case x: Cell =>
         cells.foreachNeighbours(ii)(jj)(diffuseSingle(x, _)) }
     }
-
-
-    /**
-      * Runs a single step of protein and cyto transfer
-      * Diffusion moves protein gradients, whereas osmosis
-      * moves cyto (which in turn may carry signal proteins)
-      */
-    // private def stepOsmosis: Unit = liveCells.foreach{ case(ii, jj) =>
-    //   transfer(ii, jj)
-    //   diffuse(ii, jj)
-    // }
 
 
 
@@ -164,13 +184,6 @@ object Fungus {
     /** Splits a cell in two if its pressure is over a threshold and it has free neighbors */
     private def addCell: Unit = {
 
-      // def eligible2 = liveCells
-      //   .filterNot{ case(ii,jj) => cells.isSurrounded(ii)(jj) }
-      //   .filter{ case(ii,jj) => cells(ii)(jj) match { case Cell(state, _) => state(CellState.CYTO) > splitThreshold}}
-
-      /**
-        * Collect eligible cells, ordered from most 
-        */
       def eligible = liveCells
         .filterNot{ case(ii,jj) => cells.isSurrounded(ii)(jj) }
         .map{ case(ii, jj) => (cells(ii)(jj), ii, jj) }
@@ -189,7 +202,6 @@ object Fungus {
         val free = cells.freeNeighbours(ii)(jj)
         val (sx, sy) = free(util.Random.nextInt(free.length))
 
-        // val nextCell = Cell(state.updated(CellState.CONTROL, genomes.size), nextState.clone)
         val newCell = cell.copy(
           genomeIndex = genomes.size,
           nextSignals = cell.nextSignals.clone
@@ -204,27 +216,31 @@ object Fungus {
         val newGenome = genomes(cell.genomeIndex).nodes.clone
         val newSMGC = CellControl(newGenome)
         genomes.append(newSMGC)
-
       }
     }
 
 
     /**
-      * Kills all cells whose cytoplasma is under a certain treshhold.
+      * Removes cells based on cytoplasma and integrity (i.e a cell can protect itself from removal
+      * by maintaining a high integrity)
+      * 
       * Contents are distributed to neighboring cells
       */
     private def pruneCells: Unit = {
       for(ii <- (liveCells.length - 1) downto 0){
         val (x, y) = liveCells(ii)
         cells(x)(y) match {
-          case Cell(state, nextState) => {
-            if(state(CellState.CYTO) < killThreshold){
-              genomes(state(CellState.CONTROL).toInt) = null // lel
+          case cell: Cell => {
 
-              if(state(CellState.CYTO) > 0){
+            val pruneThresholdReached = ((cell.cyto * cell.integrity) < killThreshold) && (cell.cyto < maxKillThreshold)
+            if(pruneThresholdReached){
+
+              genomes(cell.genomeIndex) = null // lel, should probably compact this every now and then
+
+              if(cell.cyto > 0){
                 val neighbors = cells.neighborCells(x)(y)
-                neighbors.foreach{ cell =>
-                  cell.nextState(CellState.CYTO) += nextState(CellState.CYTO)/(neighbors.size.toDouble)
+                neighbors.foreach{ neighborCell =>
+                  neighborCell.nextCyto += cell.cyto/(neighbors.size.toDouble)
                 }
               }
 
@@ -234,7 +250,6 @@ object Fungus {
           }
         }
       }
-
     }
 
 
@@ -244,38 +259,56 @@ object Fungus {
       */
     private def runGenomes: Unit = {
       def runGenome(recipient: Cell): Unit = {
-        val genome      = genomes(recipient.state.control)
-        val (_, output) = genome.run(recipient.state.toArray)
 
-        val outSUCC     = output(0)
-        val outSPORE    = output(1)
-        val signalStart = 2
-        val genomeSize  = genome.nodes.size
+        val genome = genomes(recipient.genomeIndex)
 
-        def efficiency = recipient.state(CellState.CYTO).max1
+        val inputs = Array(recipient.cyto, recipient.viscosity, recipient.SUCC, recipient.integrity, recipient.flow) ++ recipient.signals
 
-        /** Generate spores, consuming cyto */
-        // if(outSPORE > 0.0){
-        //   recipient.nextState(CellState.CYTO) -= (efficiency*outSPORE).max1
-        //   this.spores += (efficiency*outSPORE).max1
-        // }
+        val (_, output) = genome.run(inputs)
+
+        val outViscosity = output(0)
+        val outSUCC      = output(1)
+        val outIntegrity = output(2)
+
+        val signalStart = 3
+        val outSignals  = output.drop(signalStart)
+
+        def efficiency = math.max(recipient.cyto, 1.0)
 
         /**
           * Generate SUCC, consumes some cyto
           * Lowering SUCC is free.
+          * 
+          * TODO: Conform check is rickety AF
           */
         if(outSUCC > 0.0){
-          recipient.nextState(CellState.SUCC) += (efficiency*output(1)).roof(2.0)
-          recipient.nextState(CellState.CYTO) -= (efficiency*output(1)).roof(2.0)*SUCCcost
+          recipient.nextSUCC += (math.min(efficiency*outSUCC, 1.0))
+          recipient.nextCyto -= (math.min(efficiency*outSUCC, 1.0))*SUCCcost
         }
-        else
-          recipient.nextState(CellState.SUCC) += (efficiency*output(1)).roof(2.0)
+        else{
+          recipient.nextSUCC = math.min(recipient.nextSUCC + math.max(efficiency*outSUCC, -1.0), 0.0)
+        }
+
+        if(recipient.nextSUCC > 1.5)
+          recipient.nextSUCC = 1.5
+        else if(recipient.nextSUCC < 0.5)
+          recipient.nextSUCC = 0.5
 
 
         /** Generate proteins and such */
-        for(ii <- signalStart until output.size){
-          recipient.nextState(ii + CellState.SIGNAL) += output(ii).max1
+        for(ii <- 0 until outSignals.size){
+          val outputClamped     = if(output(ii) > 1.0) 1.0 else if(output(ii) < -1.0) -1.0 else output(ii)
+          val nextConcentration = recipient.nextSignals(ii) + output(ii)
+
+          if(nextConcentration > 0.0)
+            recipient.nextSignals(ii) = nextConcentration
+          else
+            recipient.nextSignals(ii) = 0.0
         }
+
+        // TODO: Make this less rickety
+        val nextViscosity = recipient.viscosity + outViscosity
+        recipient.nextViscosity = if(nextViscosity < 0.0) 0.0 else if(nextViscosity > 1.0) 1.0 else nextViscosity
       }
 
       liveCells.foreach{ case(ii, jj) =>
@@ -283,63 +316,47 @@ object Fungus {
       }
     }
 
+
     /** Drains cyto to pay the rent */
     private def drainCyto: Unit = {
+      val rentInv = 1.0 - rent
       liveCells.foreach{ case(x, y) =>
-        cells(x)(y) match {
-          case Cell(state, nextState) => {
-            val cyto = state(CellState.CYTO)
-            nextState(CellState.CYTO) -= cyto*rent
-          }
-        }
+        cells(x)(y) match { case cell: Cell => { cell.nextCyto *= rentInv } }
       }
     }
 
-    // def totalCyto  : Double = cells.flatten.flatten.map(cell => cell(Cell.CYTO)).sum
-    def totalCyto = cells.flatten.collect{ case Cell(state, nextState) => nextState(CellState.CYTO) }.sum
+    def totalCyto = cells.flatten.collect{ case cell: Cell => cell.nextCyto }.sum
 
     def stepFull: Unit = {
 
-      liveCells.map{ case(z, zz) => cells(z)(zz)}.collect{ case Cell(state, nextState) => state(CellState.CYTO) }.filter(_ < 0).foreach(say(_))
+      dsay(s"at start: $totalCyto")            
+      liveCells.foreach{ case(ii, jj) =>
+        advection(ii, jj)
+        diffuse(ii, jj)
+      }
 
-
-      dsay(s"at start:            $totalCyto")            
-      stepOsmosis                             
-      dsay(s"after osmosis        $totalCyto")        
-      stepConsumption                         
+      stepConsumption
       dsay(s"after consumption    $totalCyto")    
+
       drainCyto                               
       dsay(s"after drain          $totalCyto")          
-      dsay(s"spores b4 genome     $spores")
+
       runGenomes                              
       dsay(s"after running genome $totalCyto") 
-      dsay(s"spores afteer genome $spores")
-      addCell                                 
-      dsay(s"after adding cell    $totalCyto\n\n")    
 
-      for(ii <- 0 until cells.size){
-        for(jj <- 0 until cells.size){
-          cells(ii)(jj) match {
-            case x: Cell => cells(ii)(jj) = x.next
-            case _ => ()
-          }
-        }
-      }
+      updateCells
+
+      addCell                                 
+      dsay(s"after adding cell    $totalCyto")    
+
+      updateCells
 
       dsay(s"g $totalCyto")
       pruneCells
       dsay(s"h $totalCyto")
 
-      for(ii <- 0 until cells.size){
-        for(jj <- 0 until cells.size){
-          cells(ii)(jj) match {
-            case x: Cell => cells(ii)(jj) = x.next
-            case _ => ()
-          }
-        }
-      }
+      updateCells
     }
-
   }
   object Mold {
 
@@ -381,15 +398,18 @@ object Fungus {
       food
     }
 
-    def populateFood(dim: Int, abundance: Double = 1.0): Array[Array[Double]] = {
+
+    def populateFood(abundance: Double = 1.0)(implicit params: FungusParams): Array[Array[Food]] = {
+
+      import params._
 
       val indices: List[(Int, Int)] = (0 until dim).flatMap{ x => (0 until dim).map((x, _)) }.toList
-      val food = Array.ofDim[Double](dim, dim)
+      val food = Array.ofDim[Food](dim, dim)
 
       def getRingNo(x: Int, y: Int) =
         math.max(math.abs(x - dim/2), math.abs(y - dim/2))
 
-      food(dim/2)(dim/2) = 10.0*abundance
+      food(dim/2)(dim/2) = Food(10.0*abundance)
 
       for(ringNo <- 1 until (dim/2 - 1)){
         val eligible    = util.Random.shuffle(indices.filter{ case(x,y) => getRingNo(x,y) == ringNo })
@@ -398,43 +418,42 @@ object Fungus {
 
         if(ringNo > dim/3)
           taken.foreach{ case(x, y) =>
-            food(x)(y)   = ringNo*abundance
-            food(x+1)(y) = ringNo*abundance
-            food(x-1)(y) = ringNo*abundance
-            food(x)(y+1) = ringNo*abundance
-            food(x)(y-1) = ringNo*abundance
+            food(x)(y)   = Food(ringNo*abundance)
+            food(x+1)(y) = Food(ringNo*abundance)
+            food(x-1)(y) = Food(ringNo*abundance)
+            food(x)(y+1) = Food(ringNo*abundance)
+            food(x)(y-1) = Food(ringNo*abundance)
           }
           else
-            taken.foreach{ case(x, y) => food(x)(y) = ringNo*abundance }
+            taken.foreach{ case(x, y) => food(x)(y) = Food(ringNo*abundance) }
       }
-      def sum = food.map(_.sum).sum
+      def sum = food.map(_.map(_.amount).sum).sum
       // say(s"made a petri with $sum food on it")
       food
     }
 
 
-    def apply(params: Params, genome: CellControl): Mold = {
+    def apply(genome: CellControl)(implicit params: FungusParams): Mold = {
       val cellz: Array[Array[GridContent]] = Array.ofDim[GridContent](params.dim, params.dim)
       for(ii <- 0 until params.dim)
         for(jj <- 0 until params.dim)
           cellz(ii)(jj) = Free
 
+      
+      cellz(params.dim/2)(params.dim/2) = Cell.init(0)
+
       val m = new Mold()(params) {
         override val cells     = cellz
         override val liveCells = new ArrayBuffer[(Int, Int)]()
         override val genomes   = new ArrayBuffer[CellControl]()
-        override val food      = populateFood(params.dim, 3.0)
-        // override val food      = spiralFood(params.dim, 10.0)
+        override val food      = populateFood(3.0)
       }
+
+      m.liveCells.append((params.dim/2, params.dim/2))
+      m.genomes.append(genome)
 
       val signals = Array.fill(params.nSignals)(0.0)
 
-      val initSUCC = 0.0
-      val initCYTO = 8.0
-
-      m.cells(params.dim/2)(params.dim/2) = Cell(Array(0.0, initCYTO, initSUCC) ++ signals.clone)
-      m.liveCells.append((params.dim/2, params.dim/2))
-      m.genomes.append(genome)
       m
     }
   }

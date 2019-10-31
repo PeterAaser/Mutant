@@ -76,12 +76,13 @@ abstract class SMCG(numOutputs: Int = 5) {
       nodes(index).value = nodeFunctionLookup(nodes(index).f, arg0, arg1, p0, index, inputs)
     }
 
-    val outBuf = Array.ofDim[Double](numOutputs)
     nodes.filter{ node => isOutput(node.f) }.foreach{ node =>
       val idx = node.p0.floorInt.modp(numOutputs - 1)
-      outBuf(idx) += node.value
+      // outBuf(idx) += node.value
     }
-    outBuf
+    // outBuf
+    // I don't know what happened here. Oops
+    ???
   }
 
 
