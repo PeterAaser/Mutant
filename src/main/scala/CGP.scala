@@ -21,6 +21,9 @@ class CGP(inputNodes: Int, outputNodes: Int, val nodes: Array[CGNode]) {
     }
 
     for(ii <- inputNodes until nodes.size){
+
+      // say(ii)
+
       val node = nodes(ii)
       val arg0 = nodes(node.c0).value
       val arg1 = nodes(node.c1).value
@@ -41,9 +44,9 @@ class CGP(inputNodes: Int, outputNodes: Int, val nodes: Array[CGNode]) {
 object CGP {
   def apply(inputs: Int, outputs: Int, nodez: List[CGNode]): CGP = {
 
-    val nodes = List.fill(inputs)(CGNode(0, 0, 0)) ++ nodez
+    val nodes = nodez
 
-    say(nodes.mkString("\n", "\n", "\n"))
+    // say(nodes.mkString("\n", "\n", "\n"))
 
     def appendNeeded(n: Int, buf: ArrayBuffer[Int]): Unit = {
       nodes(n).used = true
@@ -63,8 +66,8 @@ object CGP {
       val outputIndexes = (0 until nodes.size).takeRight(outputs)
       outputIndexes.foreach(n => appendNeeded(n, traversalOrder))
 
-      traversalOrder.sorted
-      say(traversalOrder.sorted.toList)
+      // traversalOrder.sorted
+      // say(traversalOrder.sorted.toList)
       traversalOrder.sorted
     }
 
@@ -73,10 +76,17 @@ object CGP {
       * Removes all unecessary genes, hopefully improving memory behavior
       */
     def flatten(traversalOrder: ArrayBuffer[Int]): List[CGNode] = {
+      val nameLookup = traversalOrder.zipWithIndex.toMap
       traversalOrder
         .map(idx => (idx, nodes(idx)))
         .map{ case(idx, node) =>
-          node.copy(c0 = idx - node.c0, c1 = idx - node.c1)
+          val absc0 = idx - node.c0
+          val absc1 = idx - node.c1
+
+          node.copy(
+            c0 = nameLookup(idx - node.c0),
+            c1 = nameLookup(idx - node.c1)
+          )
         }.toList
     }
 
@@ -139,17 +149,28 @@ object CGP {
   }
 
   val ghettoTest = {
+    // val inputNodes  = 5
+    // val outputNodes = 4
+    // val layers      = 3
+    // val layerSize   = 3
+    // val lookBack    = 2
+
+    val inputNodes  = 5
+    val outputNodes = 4
+    val layers      = 5
+    val layerSize   = 10
+    val lookBack    = 2
 
     val hur = CGenetics.generate(
-      inputNodes  = 5,
-      outputNodes = 4,
-      layers      = 5,
-      layerSize   = 3,
-      lookBack    = 2
+      inputNodes,
+      outputNodes,
+      layers,
+      layerSize,
+      lookBack,
     )
-    say(hur.toList.mkString("\n","\n","\n"))
-    say(hur.slice(5, 20).grouped(3).map(_.mkString("\n","\n\n","\n\n")).toList)
+    // say(hur.toList.mkString("\n","\n","\n"))
 
+    val cg = CGP(5, 4, hur)
     // CGP(
     //   6, 3,
     //   List(
@@ -171,5 +192,6 @@ object CGP {
     //   )
     // )
 
+    say(cg.run(Array(1.0, 2.0, -1.0, 3.0, 0.0)).toList)
   }
 }
