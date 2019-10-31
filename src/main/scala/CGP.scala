@@ -171,26 +171,37 @@ object CGP {
     // say(hur.toList.mkString("\n","\n","\n"))
 
     val cg = CGP(5, 4, hur)
-    // CGP(
-    //   6, 3,
-    //   List(
-    //     CGNode(4, 6, 1),
-    //     CGNode(6, 2, 2),
-    //     CGNode(5, 5, 3),
-        
-    //     CGNode(9, 2, 4),
-    //     CGNode(4, 3, 5),
-    //     CGNode(8, 6, 6),
-        
-    //     CGNode(6, 2, 7),
-    //     CGNode(2, 7, 8),
-    //     CGNode(5, 4, 9),
-        
-    //     CGNode(6, 2, 10),
-    //     CGNode(7, 7, 11),
-    //     CGNode(4, 4, 12),
-    //   )
-    // )
+
+    val broken = Array(
+      CGNode(0, 0, 0),
+      CGNode(0, 0, 0),
+      CGNode(0, 0, 0),
+      CGNode(0, 0, 0),
+      CGNode(0, 0, 0),
+      CGNode(0, 0, 0),
+
+      CGNode(4, 6, 1),
+      CGNode(6, 2, 2),
+      CGNode(5, 5, 3),
+      
+      CGNode(19, 2, 4),
+      CGNode(4, 3, 5),
+      CGNode(1, 6, 6),
+      
+      CGNode(6, 2, 7),
+      CGNode(2, 7, 8),
+      CGNode(5, 4, 9),
+      
+      CGNode(6, 2, 10),
+      CGNode(7, 7, 11),
+      CGNode(4, 4, 12),
+    )
+
+    // say(broken.toList)
+    say(broken.toList.mkString("\n","\n","\n"))
+    CGenetics.repair(6, 3, 3, 3, 2)(9, broken)
+    CGenetics.repair(6, 3, 3, 3, 2)(11, broken)
+    say(broken.toList.mkString("\n","\n","\n"))
 
     say(cg.run(Array(1.0, 2.0, -1.0, 3.0, 0.0)).toList)
   }

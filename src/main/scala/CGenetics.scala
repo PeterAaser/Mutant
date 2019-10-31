@@ -19,7 +19,6 @@ object CGenetics {
     }
 
     // Generate input connected nodes
-    val inputConnected = Array.ofDim[Node](layerSize * lookBack)
     for(ii <- 0 until layerSize * lookBack){
       // say(s"input connected node: ${ii + inputNodes}")
       val f = Random.nextInt(17)
@@ -73,5 +72,71 @@ object CGenetics {
     }
 
     nodes.toList
+  }
+
+
+  def repair(inputNodes: Int, outputNodes: Int, layers: Int, layerSize: Int, lookBack: Int)(index: Int, nodes: Array[CGNode]): Unit = {
+
+    def repairInputConnected = {
+      say(s"repairing IC connected")
+      val node = nodes(inputNodes + index)
+
+      val currentDepth = index % layerSize
+      val minConnect = 1 + currentDepth
+      val maxConnect = index + inputNodes
+
+      nodes(inputNodes + index) = node.copy(
+        c0 = node.c0.constrain(minConnect, maxConnect),
+        c1 = node.c1.constrain(minConnect, maxConnect)
+      )
+    }
+
+
+    def repairInternal = {
+      say(s"repairing internal")
+      val node = nodes(index)
+
+      val currentDepth = (index - inputNodes)%layerSize
+      val minConnect = 1 + currentDepth
+      val maxConnect = lookBack*layerSize + currentDepth
+
+      say(currentDepth)
+      say(minConnect)
+      say(maxConnect)
+
+      nodes(index) = node.copy(
+        c0 = node.c0.constrain(minConnect, maxConnect),
+        c1 = node.c1.constrain(minConnect, maxConnect)
+      )
+    }
+
+
+    def repairOutput = {
+      say(s"repairing output")
+      val node = nodes(index)
+
+      val currentDepth = (index - (inputNodes + (layers * layerSize))) % outputNodes
+      val minConnect = 1 + currentDepth
+      val maxConnect = lookBack*layerSize + currentDepth
+
+      say(currentDepth)
+      say(minConnect)
+      say(maxConnect)
+
+      nodes(index) = node.copy(
+        c0 = node.c0.constrain(minConnect, maxConnect),
+        c1 = node.c1.constrain(minConnect, maxConnect)
+      )
+    }
+
+    
+    val lastIC    = inputNodes + ((lookBack - 1) * layerSize)
+    val lastLayer = inputNodes + (layers*layerSize)
+
+    index match {
+      case x if x < lastIC => repairInputConnected
+      case x if x < lastLayer => repairInternal
+      case _ => repairOutput
+    }
   }
 }

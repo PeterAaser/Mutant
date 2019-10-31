@@ -19,6 +19,7 @@ object IntBonusOps {
 
     def minClamp(n: Int) = if(i < n) n else i
 
+    def constrain(min: Int, max: Int): Int = if(i < min) min else if(i > max) max else i
   }
 }
 
@@ -30,6 +31,8 @@ object DoubleBonusOps {
 
     /** a.maxClamp(b) returns */
     def roof(d2: Double) = if(d > d2) d2 else d
+
+    def constrain(min: Double, max: Double): Double = if(d < min) min else if(d > max) max else d
   }
 }
 
